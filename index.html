@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design e Implementação do Software de Reserva de Salas</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --secondary: #475569;
+      --accent: #3b82f6;
+      --background: #f8fafc;
+      --text: #1e293b;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--background);
+    }
+    header {
+      background: var(--primary);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .author {
+      color: #e2e8f0;
+      margin-top: 0.5rem;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.5s ease-out;
+    }
+    .section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .section h2 {
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .section h2::after {
+      content: '▼';
+      margin-left: 0.5rem;
+      font-size: 0.8em;
+      transition: transform 0.3s ease;
+    }
+    .section.collapsed h2::after {
+      transform: rotate(-90deg);
+    }
+    .section.collapsed .content {
+      display: none;
+    }
+    .phase-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    /* Elementos clicáveis */
+    .phase-card, .role-card, .test-scenario, tr[data-explanation] {
+      background: #f1f5f9;
+      padding: 1rem;
+      border-radius: 6px;
+      transition: transform 0.2s ease;
+      cursor: pointer;
+    }
+    .phase-card:hover, .role-card:hover, .test-scenario:hover, tr[data-explanation]:hover {
+      transform: translateY(-5px);
+    }
+    .role-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .requirements-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    .requirements-table th,
+    .requirements-table td {
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+    }
+    .requirements-table th {
+      background: var(--primary);
+      color: white;
+    }
+    .requirements-table tr:nth-child(even) {
+      background: #f1f5f9;
+    }
+    .test-scenario:hover {
+      background: #e2e8f0;
+    }
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      position: relative;
+      animation: slideIn 0.5s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(-50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--secondary);
+    }
+    @media (max-width: 768px) {
+      .phase-grid {
+        grid-template-columns: 1fr;
+      }
+      .role-list {
+        grid-template-columns: 1fr;
+      }
+    }
+    /* Rodapé Criativo */
+    footer {
+      background: linear-gradient(45deg, var(--primary), var(--accent));
+      color: white;
+      padding: 1.5rem 1rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      margin-top: 2rem;
+    }
+    footer .footer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    footer p {
+      margin-bottom: 0.5rem;
+    }
+    footer a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: bold;
+      margin: 0 0.5rem;
+      transition: transform 0.3s ease, color 0.3s ease;
+    }
+    footer a:hover {
+      color: var(--background);
+      transform: scale(1.1);
+    }
+    footer::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: rotate 6s linear infinite;
+      z-index: -1;
+      pointer-events: none;
+    }
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Design e Implementação do Software de Reserva de Salas</h1>
+    <p class="author">Ricardo Santana de Souza - 22/02/2025</p>
+  </header>
+
+  <div class="container">
+    <!-- Seção 1: Fases do SDLC -->
+    <section class="section" id="sdlc-phases">
+      <h2>1. Fases do SDLC</h2>
+      <div class="content">
+        <div class="phase-grid">
+          <div class="phase-card" data-explanation="Imagine que você está planejando uma viagem, onde cada requisito é como uma mala que você precisa levar; esse passo é a preparação para a jornada.">
+            <h3>Levantamento de Requisitos</h3>
+            <p>Coleta de necessidades dos usuários, incluindo autenticação e gerenciamento de reservas.</p>
+          </div>
+          <div class="phase-card" data-explanation="Assim como um detetive que investiga pistas, a análise desvende as necessidades e desafios, conectando pontos como em um quebra-cabeça.">
+            <h3>Análise</h3>
+            <p>Definição de requisitos funcionais e não funcionais, incluindo aspectos de segurança.</p>
+          </div>
+          <div class="phase-card" data-explanation="Pense nisso como o esboço de um castelo, onde cada parede e torre é planejada para tornar o edifício não só bonito, mas funcional.">
+            <h3>Design</h3>
+            <p>Criação de diagramas, protótipos e definição da arquitetura do sistema.</p>
+          </div>
+          <div class="phase-card" data-explanation="Semelhante a construir uma casa, cada linha de código é um tijolo que, quando colocado com precisão, forma o sistema robusto.">
+            <h3>Implementação</h3>
+            <p>Desenvolvimento do código e integração dos diferentes módulos do sistema.</p>
+          </div>
+          <div class="phase-card" data-explanation="Como um piloto de avião que verifica todos os sistemas antes de decolar, os testes garantem que tudo esteja em ordem para a decolagem segura.">
+            <h3>Testes</h3>
+            <p>Validação das funcionalidades e verificação de casos especiais.</p>
+          </div>
+          <div class="phase-card" data-explanation="É como a inauguração de um novo parque, onde todo o trabalho é finalmente aberto para o público aproveitar.">
+            <h3>Implantação</h3>
+            <p>Deploy em produção e treinamento dos usuários finais.</p>
+          </div>
+          <div class="phase-card" data-explanation="Semelhante a cuidar de um jardim, manutenção significa aparar, podar e cuidar para que tudo continue florescendo.">
+            <h3>Manutenção</h3>
+            <p>Correção de bugs e implementação de melhorias contínuas.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção 2: Papéis e Responsabilidades -->
+    <section class="section" id="roles">
+      <h2>2. Papéis e Responsabilidades</h2>
+      <div class="content">
+        <div class="role-list">
+          <div class="role-card" data-explanation="Imagine um maestro regendo uma orquestra; o gerente de projeto coordena cada instrumento para criar uma sinfonia perfeita.">
+            <h3>Gerente de Projeto</h3>
+            <p>Coordena equipe, prazos e recursos do projeto.</p>
+          </div>
+          <div class="role-card" data-explanation="Como um tradutor, o analista converte as necessidades dos usuários em um idioma que a equipe técnica entende.">
+            <h3>Analista de Requisitos</h3>
+            <p>Documenta necessidades dos usuários.</p>
+          </div>
+          <div class="role-card" data-explanation="Pense nele como um engenheiro que desenha a planta de um arranha-céu, garantindo que cada andar seja seguro e funcional.">
+            <h3>Arquiteto de Software</h3>
+            <p>Define estrutura técnica e tecnologias.</p>
+          </div>
+          <div class="role-card" data-explanation="É como um artista que transforma a usabilidade em uma experiência agradável, como decorar uma casa para que todos se sintam bem.">
+            <h3>UI/UX Designer</h3>
+            <p>Cria interfaces intuitivas para usuários.</p>
+          </div>
+          <div class="role-card" data-explanation="Assim como um chef em uma cozinha, o desenvolvedor mistura ingredientes para criar um prato delicioso (o software).">
+            <h3>Desenvolvedor</h3>
+            <p>Implementa as funcionalidades do sistema.</p>
+          </div>
+          <div class="role-card" data-explanation="Imagine um crítico gastronômico, sempre em busca do menor defeito para garantir a qualidade final.">
+            <h3>Testador</h3>
+            <p>Valida o sistema e reporta problemas.</p>
+          </div>
+          <div class="role-card" data-explanation="É o maestro dos bastidores, assegurando que a infraestrutura esteja sempre afinada, como os bastidores de um grande espetáculo.">
+            <h3>DevOps</h3>
+            <p>Gerencia infraestrutura e implantação.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção 3: Requisitos do Software -->
+    <section class="section" id="requirements">
+      <h2>3. Requisitos do Software</h2>
+      <div class="content">
+        <h3>Requisitos Funcionais</h3>
+        <table class="requirements-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-explanation="Assim como uma fechadura que protege uma casa, a autenticação garante que só pessoas autorizadas entrem.">
+              <td>RF01</td>
+              <td>Autenticação de usuários (comum/admin)</td>
+            </tr>
+            <tr data-explanation="É como reservar um assento em um teatro; cada reserva tem seu lugar e hora.">
+              <td>RF02</td>
+              <td>Reserva de salas com data/hora</td>
+            </tr>
+            <tr data-explanation="Como uma agenda, esse item organiza os compromissos para não se perder nenhum.">
+              <td>RF03</td>
+              <td>Listagem de reservas existentes</td>
+            </tr>
+            <tr data-explanation="Semelhante a cancelar um ingresso, apenas quem tem a autoridade pode fazê-lo.">
+              <td>RF04</td>
+              <td>Cancelamento de reservas (apenas admin)</td>
+            </tr>
+            <tr data-explanation="Imagine um relógio que evita que dois compromissos se choquem; essa verificação mantém tudo em ordem.">
+              <td>RF05</td>
+              <td>Verificação de conflitos de horários</td>
+            </tr>
+            <tr data-explanation="Como uma campainha que avisa a chegada de um visitante, o sistema notifica sobre as reservas.">
+              <td>RF06</td>
+              <td>Notificação por e-mail ao confirmar reserva</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem;">Requisitos Não Funcionais</h3>
+        <table class="requirements-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-explanation="Como um cofre em um banco, a criptografia protege os segredos.">
+              <td>RNF01</td>
+              <td>Segurança (criptografia de senhas)</td>
+            </tr>
+            <tr data-explanation="Semelhante a uma loja bem organizada, a interface facilita a localização do que precisa.">
+              <td>RNF02</td>
+              <td>Interface responsiva e intuitiva</td>
+            </tr>
+            <tr data-explanation="Como um carrinho de compras rápido, o sistema deve responder com agilidade.">
+              <td>RNF03</td>
+              <td>Tempo de resposta &lt; 2 segundos</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Seção 4: Design e Implementação -->
+    <section class="section" id="design">
+      <h2>4. Design e Implementação</h2>
+      <div class="content">
+        <div class="phase-grid">
+          <div class="phase-card" data-explanation="Pense nisso como a decoração de um restaurante, onde cada detalhe faz a experiência do cliente única.">
+            <h3>Design da Interface</h3>
+            <ul>
+              <li>Login com campos para e-mail e senha</li>
+              <li>Dashboard com lista de salas</li>
+              <li>Formulário de reserva intuitivo</li>
+              <li>Painel administrativo completo</li>
+            </ul>
+          </div>
+          <div class="phase-card" data-explanation="É como escolher os melhores ingredientes para uma receita; cada tecnologia foi selecionada para garantir um resultado saboroso.">
+            <h3>Tecnologias</h3>
+            <ul>
+              <li>Backend: Django (Python)</li>
+              <li>Database: PostgreSQL</li>
+              <li>Frontend: HTML/CSS</li>
+              <li>Autenticação: JWT</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção 5: Testes do Software -->
+    <section class="section" id="testing">
+      <h2>5. Testes do Software</h2>
+      <div class="content">
+        <div class="test-scenario" data-explanation="Assim como testar um protótipo de carro, esse cenário verifica se tudo funciona perfeitamente antes de rodar na estrada.">
+          <h3>Cenário 1: Reserva Válida</h3>
+          <p>Objetivo: Verificar registro correto da reserva</p>
+          <p>Resultado Esperado: Reserva criada e e-mail enviado</p>
+        </div>
+        <div class="test-scenario" data-explanation="Imagine tentar marcar dois compromissos ao mesmo tempo; esse teste garante que o sistema evite tais colisões.">
+          <h3>Cenário 2: Conflito de Horário</h3>
+          <p>Objetivo: Impedir reservas sobrepostas</p>
+          <p>Resultado Esperado: Mensagem de erro exibida</p>
+        </div>
+        <div class="test-scenario" data-explanation="Como uma revisão de segurança em um prédio, esse teste confirma que apenas quem tem a chave correta pode fazer alterações.">
+          <h3>Cenário 3: Cancelamento por Admin</h3>
+          <p>Objetivo: Validar permissões administrativas</p>
+          <p>Resultado Esperado: Reserva cancelada apenas por admin</p>
+        </div>
+        <div class="test-scenario" data-explanation="Pense nisso como um cofre que rejeita combinações erradas, mantendo o acesso protegido.">
+          <h3>Cenário 4: Autenticação Inválida</h3>
+          <p>Objetivo: Testar segurança do login</p>
+          <p>Resultado Esperado: Mensagem 'Credenciais inválidas'</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal para explicações -->
+  <div id="modal" class="modal">
+    <div class="modal-content" id="modal-content">
+      <span class="close-btn" id="modal-close">&times;</span>
+      <p id="modal-text"></p>
+    </div>
+  </div>
+
+  <!-- Rodapé com links para os perfis -->
+  <footer>
+    <div class="footer-container">
+      <p>Siga Ricardo Souza:</p>
+      <p>
+        <a href="https://www.linkedin.com/in/pcricardo2024/" target="_blank">LinkedIn</a> |
+        <a href="https://github.com/pcsouzafv" target="_blank">GitHub</a>
+      </p>
+      <p>Desenvolvido por <strong>Ricardo Souza</strong> - Módulo 1 da Especialização DevSecOps</p>
+      <p>Professora: <a href="https://www.linkedin.com/in/helena-carreco/" target="_blank">Helena Carreço</a></p>
+    </div>
+  </footer>
+
+  <script>
+    // Animação de entrada para as seções
+    const sections = document.querySelectorAll('.section');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+    sections.forEach(section => observer.observe(section));
+
+    // Toggle para expandir/colapsar seções
+    document.querySelectorAll('.section h2').forEach(header => {
+      header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('collapsed');
+      });
+    });
+
+    // Efeito hover para os cards e linhas da tabela
+    document.querySelectorAll('.role-card, .phase-card, .test-scenario, tr[data-explanation]').forEach(item => {
+      item.addEventListener('mouseover', () => {
+        item.style.transform = 'scale(1.05)';
+      });
+      item.addEventListener('mouseout', () => {
+        item.style.transform = 'scale(1)';
+      });
+    });
+
+    // Modal: Exibe a explicação ao clicar nos itens com data-explanation
+    const modal = document.getElementById('modal');
+    const modalText = document.getElementById('modal-text');
+    const closeBtn = document.getElementById('modal-close');
+
+    document.querySelectorAll('[data-explanation]').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        modalText.textContent = item.getAttribute('data-explanation');
+        modal.style.display = 'flex';
+      });
+    });
+
+    closeBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (event) => {
+      if (event.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+
+    // Animação extra para os cenários de teste ao clicar
+    document.querySelectorAll('.test-scenario').forEach(scenario => {
+      scenario.addEventListener('click', () => {
+        scenario.style.transform = 'translateX(10px)';
+        setTimeout(() => { scenario.style.transform = 'translateX(0)'; }, 200);
+      });
+    });
+  </script>
+</body>
+</html>
