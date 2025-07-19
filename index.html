@@ -114,6 +114,20 @@
     .test-scenario:hover {
       background: #e2e8f0;
     }
+    .quiz-question {
+      background: #f1f5f9;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    .quiz-question button {
+      margin-right: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .quiz-question .feedback {
+      margin-left: 0.5rem;
+      font-weight: bold;
+    }
     /* Modal Styles */
     .modal {
       display: none;
@@ -407,6 +421,27 @@
         </div>
       </div>
     </section>
+
+    <!-- Seção 6: Quiz Interativo -->
+    <section class="section" id="quiz">
+      <h2>6. Quiz Interativo</h2>
+      <div class="content">
+        <div class="quiz-question" data-answer="C">
+          <p>1. Em qual fase do SDLC são definidos os requisitos funcionais?</p>
+          <button data-option="A">Design</button>
+          <button data-option="B">Testes</button>
+          <button data-option="C">Análise</button>
+          <span class="feedback"></span>
+        </div>
+        <div class="quiz-question" data-answer="B">
+          <p>2. Quem coordena prazos e recursos do projeto?</p>
+          <button data-option="A">Desenvolvedor</button>
+          <button data-option="B">Gerente de Projeto</button>
+          <button data-option="C">UI/UX Designer</button>
+          <span class="feedback"></span>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- Modal para explicações -->
@@ -487,6 +522,23 @@
       scenario.addEventListener('click', () => {
         scenario.style.transform = 'translateX(10px)';
         setTimeout(() => { scenario.style.transform = 'translateX(0)'; }, 200);
+      });
+    });
+
+    // Lógica do quiz interativo
+    document.querySelectorAll('.quiz-question').forEach(question => {
+      const answer = question.dataset.answer;
+      question.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const feedback = question.querySelector('.feedback');
+          if (btn.dataset.option === answer) {
+            feedback.textContent = 'Resposta correta!';
+            feedback.style.color = 'green';
+          } else {
+            feedback.textContent = 'Resposta incorreta. Tente novamente.';
+            feedback.style.color = 'red';
+          }
+        });
       });
     });
   </script>
